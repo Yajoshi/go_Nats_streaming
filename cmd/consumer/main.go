@@ -1,4 +1,4 @@
-// EO service: pulls requests from NATS JetStream, persists them, acknowledges
+// Consumer service: pulls requests from NATS JetStream, persists them, acknowledges
 // them, processes them, publishes progress updates and a final response.
 package main
 
@@ -76,7 +76,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Printf("EO connected to %s, waiting for FLL requests on %q", natsURL, common.RequestSubject)
+	log.Printf("CON  connected to %s, waiting for REQ requests on %q", natsURL, common.RequestSubject)
 
 	// Resume anything accepted before a previous crash or restart.
 	svc.resume()
@@ -103,7 +103,7 @@ func main() {
 // ensureStreamAndConsumer creates the streams and the durable pull consumer if
 // they do not exist yet, so the demo works with a fresh NATS server.
 func ensureStreamAndConsumer(js nats.JetStreamContext) error {
-	// Stream for events going EO -> FLL (progress updates and final responses).
+	// Stream for events going CON  -> REQ (progress updates and final responses).
 	if _, err := js.StreamInfo(common.EventsStreamName); err != nil {
 		if !errors.Is(err, nats.ErrStreamNotFound) {
 			return err
@@ -121,7 +121,7 @@ func ensureStreamAndConsumer(js nats.JetStreamContext) error {
 		log.Printf("created stream %s", common.EventsStreamName)
 	}
 
-	// Stream for requests going FLL -> EO.
+	// Stream for requests going REQ -> EO.
 	if _, err := js.StreamInfo(common.StreamName); err != nil {
 		if !errors.Is(err, nats.ErrStreamNotFound) {
 			return err
@@ -197,7 +197,7 @@ func (s *service) handle(msg *nats.Msg) {
 		return
 	}
 
-	// Business ACK for the FLL UI.
+	// Business ACK for the REQ UI.
 	s.publishUpdate(common.Update{
 		RequestID: req.RequestID,
 		Status:    common.StatusAccepted,
@@ -282,7 +282,7 @@ func (s *service) process(req common.Request) {
 		// Replace this sleep with the real work for the stage.
 		time.Sleep(2 * time.Second)
 
-		// Demo hook: lets you test the failure path from the FLL client.
+		// Demo hook: lets you test the failure path from the REQ client.
 		if p.Application == "fail-me" && st.name == "INSTALLING" {
 			s.finish(req.RequestID, stateFailed, "simulated installation failure")
 			return
@@ -321,7 +321,7 @@ func (s *service) publishJSON(subject string, v any) {
 		log.Printf("marshal for %s: %v", subject, err)
 		return
 	}
-	// js.Publish waits for the EO_EVENTS stream to confirm it stored the
+	// js.Publish waits for the CON_EVENTS stream to confirm it stored the
 	// message, so an event is never silently lost.
 	if _, err := s.js.Publish(subject, b); err != nil {
 		log.Printf("publish to %s failed: %v", subject, err)

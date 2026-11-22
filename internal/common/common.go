@@ -1,5 +1,5 @@
 // Package common holds the subjects, JetStream names and message types
-// shared by the EO service and the FLL client.
+// shared by the Consumer service and the REQ client.
 package common
 
 import (
@@ -11,18 +11,18 @@ const (
 	DefaultNATSURL = "nats://localhost:4222"
 
 	// Subjects.
-	RequestSubject  = "fll.eo.requests"  // FLL -> EO (persisted in JetStream)
-	UpdateSubject   = "eo.fll.updates"   // EO -> FLL (business ACK + progress)
-	ResponseSubject = "eo.fll.responses" // EO -> FLL (final result)
+	RequestSubject  = "fll.eo.requests"  // REQ -> CON  (persisted in JetStream)
+	UpdateSubject   = "con.req.updates"   // CON  -> REQ (business ACK + progress)
+	ResponseSubject = "con.req.responses" // CON  -> REQ (final result)
 
 	// EventsSubject matches both UpdateSubject and ResponseSubject. It is
-	// captured by a second JetStream stream so FLL never misses an event.
-	EventsSubject = "eo.fll.>"
+	// captured by a second JetStream stream so REQ never misses an event.
+	EventsSubject = "con.req.>"
 
 	// JetStream objects.
-	StreamName       = "EO_REQUESTS" // stores requests (FLL -> EO)
+	StreamName       = "CON_REQUESTS" // stores requests (REQ -> EO)
 	ConsumerName     = "EO_WORKER"
-	EventsStreamName = "EO_EVENTS" // stores updates and responses (EO -> FLL)
+	EventsStreamName = "CON_EVENTS" // stores updates and responses (CON  -> FLL)
 )
 
 // Status values used in updates and responses.
@@ -33,7 +33,7 @@ const (
 	StatusFailed     = "FAILED"      // final, failure
 )
 
-// Request is sent by FLL to EO.
+// Request is sent by REQ to EO.
 type Request struct {
 	RequestID string          `json:"requestId"`
 	Type      string          `json:"type"`
@@ -46,7 +46,7 @@ type InstallPayload struct {
 	Version     string `json:"version"`
 }
 
-// Update is published by EO on UpdateSubject (business ACK and progress).
+// Update is published by CON  on UpdateSubject (business ACK and progress).
 type Update struct {
 	RequestID string `json:"requestId"`
 	Status    string `json:"status"`
@@ -55,7 +55,7 @@ type Update struct {
 	Message   string `json:"message"`
 }
 
-// Response is the final message published by EO on ResponseSubject.
+// Response is the final message published by CON  on ResponseSubject.
 type Response struct {
 	RequestID string `json:"requestId"`
 	Status    string `json:"status"`

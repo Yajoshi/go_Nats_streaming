@@ -1,7 +1,7 @@
-// FLL test client: publishes one request to EO and prints the business ACK,
+// REQ test client: publishes one request to CON  and prints the business ACK,
 // progress updates and final response for that requestId.
 //
-// Events from EO are read from the EO_EVENTS JetStream stream. With -durable,
+// Events from CON  are read from the CON_EVENTS JetStream stream. With -durable,
 // the client uses a durable consumer, so events published while the client was
 // down or disconnected are delivered when it comes back.
 package main
@@ -48,7 +48,7 @@ func main() {
 	done := make(chan common.Response, 1)
 	isDurable := *durable != ""
 
-	// One subscription on eo.fll.> keeps updates and the final response in order.
+	// One subscription on con.req.> keeps updates and the final response in order.
 	// Events for other requestIds are filtered out.
 	handler := func(m *nats.Msg) {
 		if isDurable {
@@ -94,7 +94,7 @@ func main() {
 	// Subscribe BEFORE publishing the request.
 	sub, err := js.Subscribe(common.EventsSubject, handler, opts...)
 	if err != nil {
-		log.Fatalf("subscribe events (is EO_EVENTS stream created? start EO once first): %v", err)
+		log.Fatalf("subscribe events (is CON_EVENTS stream created? start CON  once first): %v", err)
 	}
 	defer sub.Unsubscribe()
 
@@ -107,11 +107,11 @@ func main() {
 		req := common.Request{RequestID: reqID, Type: "INSTALL_APPLICATION", Payload: payload}
 		data, _ := json.Marshal(req)
 
-		// js.Publish waits for the stream's persistence ACK, so FLL knows the
-		// request is stored even if EO is down right now.
+		// js.Publish waits for the stream's persistence ACK, so REQ knows the
+		// request is stored even if CON  is down right now.
 		pubAck, err := js.Publish(common.RequestSubject, data)
 		if err != nil {
-			log.Fatalf("publish request (is EO_REQUESTS stream created? start EO once first): %v", err)
+			log.Fatalf("publish request (is CON_REQUESTS stream created? start CON  once first): %v", err)
 		}
 		fmt.Printf("[SENT]        %s stored in stream %s (seq %d)\n", reqID, pubAck.Stream, pubAck.Sequence)
 	}

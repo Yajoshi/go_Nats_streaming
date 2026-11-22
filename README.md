@@ -1,12 +1,12 @@
-# NATS request/response demo: FLL <-> EO
+# NATS request/response demo: REQ <-> EO
 
 Two NATS subjects plus a persisted request subject, using JetStream:
 
-fll.eo.requests FLL -> EO request (stored in JetStream stream EO_REQUESTS)
-eo.fll.updates EO -> FLL business ACK ("ACCEPTED") and progress updates
-eo.fll.responses EO -> FLL final response (COMPLETED or FAILED)
+fll.eo.requests REQ -> CON request (stored in JetStream stream CON_REQUESTS)
+con.req.updates CON -> REQ business ACK ("ACCEPTED") and progress updates
+con.req.responses CON -> REQ final response (COMPLETED or FAILED)
 
-Every message carries a requestId so FLL can correlate updates and the final
+Every message carries a requestId so REQ can correlate updates and the final
 response with the original request.
 
 ## Prerequisites
@@ -31,7 +31,7 @@ response with the original request.
 
    Without Docker: nats-server -js
 
-4. Terminal 1 - start EO (it creates the stream and durable consumer if missing):
+4. Terminal 1 - start CON (it creates the stream and durable consumer if missing):
 
    go run ./cmd/eo
 
@@ -41,7 +41,7 @@ response with the original request.
 
    Expected output:
 
-   [SENT] req-... stored in stream EO_REQUESTS (seq 1)
+   [SENT] req-... stored in stream CON_REQUESTS (seq 1)
    [ACCEPTED] Request received and accepted
    [IN_PROGRESS] 10% VALIDATING VALIDATING companionapp 1.2.0
    [IN_PROGRESS] 40% DOWNLOADING DOWNLOADING companionapp 1.2.0
@@ -49,64 +49,64 @@ response with the original request.
    [IN_PROGRESS] 90% VERIFYING VERIFYING companionapp 1.2.0
    [COMPLETED] Application companionapp 1.2.0 installed successfully
 
-FLL options:
+REQ options:
 
-     go run ./cmd/fll -app companionapp -version 2.0.0 -id req-10001 -timeout 90s
+     go run ./cmd/REQ -app companionapp -version 2.0.0 -id req-10001 -timeout 90s
 
 Optional: build binaries
 
-     go build -o bin/eo ./cmd/eo
-     go build -o bin/fll ./cmd/fll
+     go build -o bin/CON  ./cmd/eo
+     go build -o bin/REQ ./cmd/fll
 
 ## Things worth trying
 
-- Failure path: go run ./cmd/fll -app fail-me
-- EO offline: stop EO, run the FLL client (the request is stored in the
+- Failure path: go run ./cmd/REQ -app fail-me
+- CON offline: stop EO, run the REQ client (the request is stored in the
   stream), then start EO. It picks the request up.
-  (Start EO once first so the stream exists.)
-- Duplicate request: run FLL twice with the same -id. EO does not run the job
+  (Start CON once first so the stream exists.)
+- Duplicate request: run REQ twice with the same -id. CON does not run the job
   twice; it re-sends the final response for a finished job.
-- Crash recovery: kill EO during a job, restart it. Jobs that were accepted
+- Crash recovery: kill CON during a job, restart it. Jobs that were accepted
   but not finished are resumed from ./data/jobs.
 
-## Durable events (FLL never misses an update)
+## Durable events (REQ never misses an update)
 
-EO publishes updates and responses into a second JetStream stream, EO_EVENTS
-(subject eo.fll.>). FLL reads it through a JetStream consumer.
+CON publishes updates and responses into a second JetStream stream, CON_EVENTS
+(subject con.req.>). REQ reads it through a JetStream consumer.
 
 - Default test client: live view of new events only.
 - With -durable NAME: a durable consumer that remembers its position. Events
-  published while FLL was down are delivered when it reconnects.
+  published while REQ was down are delivered when it reconnects.
 - With -replay: replay everything stored in the stream (filtered by -id).
 
 Try the catch-up behaviour:
 
-1. Terminal 2: go run ./cmd/fll -durable fll-ui -id req-20001
+1. Terminal 2: go run ./cmd/REQ -durable fll-ui -id req-20001
 2. Press Ctrl+C in that window while it is at DOWNLOADING or INSTALLING.
-3. Wait about 10 seconds (EO keeps working and finishes the job).
-4. Terminal 2: go run ./cmd/fll -durable fll-ui -id req-20001 -no-send
-   The events published while FLL was away are delivered, ending with COMPLETED.
+3. Wait about 10 seconds (CON keeps working and finishes the job).
+4. Terminal 2: go run ./cmd/REQ -durable fll-ui -id req-20001 -no-send
+   The events published while REQ was away are delivered, ending with COMPLETED.
 
 Use -no-send so the request is not sent a second time (a re-sent id is safely
-ignored by EO anyway, but -no-send is the clean way to only listen).
+ignored by CON anyway, but -no-send is the clean way to only listen).
 
-Note: if you run EO from an earlier version, just restart it once so it creates
-the EO_EVENTS stream. FLL needs that stream to exist before it subscribes.
+Note: if you run CON from an earlier version, just restart it once so it creates
+the CON_EVENTS stream. REQ needs that stream to exist before it subscribes.
 
 ## Configuration (environment variables)
 
 NATS_URL default nats://localhost:4222
-EO_DATA_DIR default ./data/jobs (EO job store, one JSON file per requestId)
+EO_DATA_DIR default ./data/jobs (CON job store, one JSON file per requestId)
 
 ## How acknowledgement works
 
-EO implements both kinds of ACK:
+CON implements both kinds of ACK:
 
-1. NATS ACK (JetStream). EO first writes the request to its own job store,
-   then calls msg.Ack(). If the write fails, EO calls Nak() and JetStream
+1. NATS ACK (JetStream). CON first writes the request to its own job store,
+   then calls msg.Ack(). If the write fails, CON calls Nak() and JetStream
    redelivers. Malformed messages are Term()'d so they are never redelivered.
-2. Business ACK. Right after the NATS ACK, EO publishes a message with
-   status ACCEPTED on eo.fll.updates, so the UI can show "request accepted".
+2. Business ACK. Right after the NATS ACK, CON publishes a message with
+   status ACCEPTED on con.req.updates, so the UI can show "request accepted".
 
 Idempotency: the job store is keyed by requestId, so a redelivered or
 duplicated request cannot trigger the installation twice.
@@ -115,9 +115,9 @@ duplicated request cannot trigger the installation twice.
 
 docker-compose.yml NATS server with JetStream
 internal/common/common.go subjects, stream names, message types
-cmd/eo/main.go EO service (pull consumer, ACKs, processing)
+cmd/eo/main.go Consumer service (pull consumer, ACKs, processing)
 cmd/eo/store.go file-based job store (durability + idempotency)
-cmd/fll/main.go FLL test client
+cmd/fll/main.go REQ test client
 
 ## Where to plug in real work
 
@@ -127,25 +127,25 @@ install, verify). Return failures through s.finish(id, stateFailed, "reason").
 
 ## Production notes
 
-- Updates and final responses are stored in the EO_EVENTS stream (subject
-  eo.fll.>), kept for 24 hours. A real FLL service should use a durable
+- Updates and final responses are stored in the CON_EVENTS stream (subject
+  con.req.>), kept for 24 hours. A real Requester service should use a durable
   consumer (see "Durable events" above) with its own unique name per instance.
-- Replace the file job store with a database if EO runs as several replicas.
+- Replace the file job store with a database if CON runs as several replicas.
 - Add NATS authentication and TLS (nats.UserCredentials, nats.Secure).
 
-# EO - FLL NATS Communication Flow
+# CON - REQ NATS Communication Flow
 
-This diagram illustrates request submission, acceptance, execution, progress updates, completion, reconnection, and duplicate request handling between FLL and EO.
+This diagram illustrates request submission, acceptance, execution, progress updates, completion, reconnection, and duplicate request handling between REQ and EO.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User FLL UI
-    participant F as FLL Service
-    participant R as JetStream EO_REQUESTS
-    participant E as EO Service
-    participant J as EO Job Store
-    participant S as JetStream EO_EVENTS
+    actor U as User REQ UI
+    participant F as Requester service
+    participant R as JetStream CON_REQUESTS
+    participant E as Consumer service
+    participant J as CON  Job Store
+    participant S as JetStream CON_EVENTS
     participant T as Edge Target
 
     rect rgb(235,225,245)
@@ -186,15 +186,15 @@ sequenceDiagram
 
     rect rgb(235,225,245)
         Note over S,U: PHASE 5 - EVENT DELIVERY
-        S-->>F: Deliver events to durable FLL consumer
+        S-->>F: Deliver events to durable Requester consumer
         F-->>U: Display ACCEPTED status
         F-->>U: Display installation progress
         F-->>U: Display final result
     end
 
     rect rgb(255,230,225)
-        Note over F,S: PHASE 6 - FLL RECONNECTION
-        Note over F: FLL temporarily disconnected
+        Note over F,S: PHASE 6 - REQ RECONNECTION
+        Note over F: REQ temporarily disconnected
         E->>S: Continue publishing job events
         F->>S: Reconnect using same durable consumer
         S-->>F: Redeliver pending unacknowledged events

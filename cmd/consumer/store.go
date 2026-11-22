@@ -31,7 +31,7 @@ func (r jobRecord) terminal() bool {
 }
 
 // jobStore is a tiny durable job store: one JSON file per requestId.
-// EO persists a request here BEFORE acknowledging the JetStream message,
+// CON  persists a request here BEFORE acknowledging the JetStream message,
 // so a crash after the ACK cannot lose the job, and a redelivered request
 // is detected by requestId (idempotency).
 type jobStore struct {
