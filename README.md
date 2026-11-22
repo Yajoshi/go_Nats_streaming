@@ -1,4 +1,4 @@
-# NATS request/response demo: REQ <-> EO
+# NATS request/response demo: REQ <-> CON
 
 Two NATS subjects plus a persisted request subject, using JetStream:
 
