@@ -1,0 +1,13 @@
+{
+  "request": {
+    "requestId": "req-20001",
+    "type": "INSTALL_APPLICATION",
+    "payload": {
+      "application": "companionapp",
+      "version": "1.2.0"
+    }
+  },
+  "state": "COMPLETED",
+  "message": "Application companionapp 1.2.0 installed successfully",
+  "updatedAt": "2026-11-22T01:56:42.977422Z"
+}
