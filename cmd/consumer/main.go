@@ -32,7 +32,7 @@ type service struct {
 
 func main() {
 	natsURL := common.Env("NATS_URL", common.DefaultNATSURL)
-	dataDir := common.Env("EO_DATA_DIR", "./data/jobs")
+	dataDir := common.Env("CON_DATA_DIR", "./data/jobs")
 
 	store, err := newJobStore(dataDir)
 	if err != nil {

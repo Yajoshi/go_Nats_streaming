@@ -21,7 +21,7 @@ const (
 
 	// JetStream objects.
 	StreamName       = "CON_REQUESTS" // stores requests (REQ -> EO)
-	ConsumerName     = "EO_WORKER"
+	ConsumerName     = "CON_WORKER"
 	EventsStreamName = "CON_EVENTS" // stores updates and responses (CON  -> FLL)
 )
 

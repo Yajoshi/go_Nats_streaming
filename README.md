@@ -96,7 +96,7 @@ the CON_EVENTS stream. REQ needs that stream to exist before it subscribes.
 ## Configuration (environment variables)
 
 NATS_URL default nats://localhost:4222
-EO_DATA_DIR default ./data/jobs (CON job store, one JSON file per requestId)
+CON_DATA_DIR default ./data/jobs (CON job store, one JSON file per requestId)
 
 ## How acknowledgement works
 
@@ -135,7 +135,7 @@ install, verify). Return failures through s.finish(id, stateFailed, "reason").
 
 # CON - REQ NATS Communication Flow
 
-This diagram illustrates request submission, acceptance, execution, progress updates, completion, reconnection, and duplicate request handling between REQ and EO.
+This diagram illustrates request submission, acceptance, execution, progress updates, completion, reconnection, and duplicate request handling between REQ and CON.
 
 ```mermaid
 sequenceDiagram
@@ -157,7 +157,7 @@ sequenceDiagram
 
     rect rgb(220,235,250)
         Note over R,S: PHASE 2 - REQUEST ACCEPTANCE
-        E->>R: Pull request using EO_WORKER durable consumer
+        E->>R: Pull request using CON_WORKER durable consumer
         R-->>E: Deliver req-10001
         E->>J: Save job using requestId
         J-->>E: Job saved successfully
